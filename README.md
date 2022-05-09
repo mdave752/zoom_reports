@@ -1,6 +1,6 @@
 # zoom_reports
-Creates a readble excel report as .xlsx file, from zoom meeting detail csv.
-Had a problem that School helped, had to make monthly attendence reports
+Creates a readble report from zoom meetingdetails csv file.
+Had a problem at a School that I worked in , They had to create monthly attendence reports during studies online.
 
 <img width="865" alt="Screenshot 2022-05-09 at 19 36 06" src="https://user-images.githubusercontent.com/80170874/167456371-88dad3e6-7ce2-4307-a445-fcd97fe258f1.png">
 
