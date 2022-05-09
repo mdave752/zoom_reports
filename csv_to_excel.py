@@ -9,13 +9,13 @@ class ZoomToXlsx:
     REGION_PREFERENCES = {
         # REGIONAL AND LANGAUGE SETTINGS, CHANGE VALUES TO DIFFERENT LANAGUE IF NEEDED
         "meetingId": "Meeting ID",
-        "topic": "Temats" + " :",
-        "meetingDuration": "Sapulces ilgums (minutēs)" + " :",
-        "startTime": "Sākuma laiks",
-        "endTime": "Beigu Laiks",
-        "name": "Vārds",
-        "email": "E-pasts ",
-        "timeOnline": "Pieslēgšanās ilgums",
+        "topic": "Topic" + " :",
+        "meetingDuration": "Meeting Duration (minutes)" + " :",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "name": "Name",
+        "email": "Email ",
+        "timeOnline": "Duration Online",
         # Takes datetime date value, check strftime documentation for valid dates
         "dateToLocal": "%d.%m.%Y",
     }
