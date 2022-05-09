@@ -1,133 +1,164 @@
-import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Border, Side
-
-# Which file to parse
-filename = "filename.csv"
-
-f = open(filename, 'r', encoding='utf-8')
-file = f.read().split('\n')
-f.close()
-
-new_list = list()
-user_data = [0, 0, 0]
-user_name, email = list(), list()
-user = list()
-for x in file[1:]:
-    answ = x.split(',')
-    if answ[0] == '':
-        test_list = [meet_id, duration, topic, start_t, end_t, user]
-        user_name = []
-        email = []
-        new_list.append(test_list)
-        test_list = []
-        user = []
-        continue
-    meet_id = answ[1]
-    duration = answ[10]
-    topic = answ[0]
-    start_time = answ[8].split()
-    right_time = datetime.datetime.strptime(
-        start_time[0], "%m/%d/%Y").strftime("%d.%m.%Y")
-    start_t = f"{right_time} {start_time[1]}"
-    end_time = answ[9].split()
-    eright_time = datetime.datetime.strptime(
-        end_time[0], "%m/%d/%Y").strftime("%d.%m.%Y")
-    end_t = f"{eright_time} {end_time[1]}"
-    user_data = [answ[12], answ[13], answ[16]]
-    user.append(user_data)
+from openpyxl.styles import Font
+import datetime
+import csv
 
 
-workbook = Workbook()
-sheet = workbook.active
+class ZoomToXlsx:
+    REGION_PREFERENCES = {
+        # REGIONAL AND LANGAUGE SETTINGS, CHANGE VALUES TO DIFFERENT LANAGUE IF NEEDED
+        "meetingId": "Meeting ID",
+        "topic": "Temats" + " :",
+        "meetingDuration": "Sapulces ilgums (minutēs)" + " :",
+        "startTime": "Sākuma laiks",
+        "endTime": "Beigu Laiks",
+        "name": "Vārds",
+        "email": "E-pasts ",
+        "timeOnline": "Pieslēgšanās ilgums",
+        # Takes datetime date value, check strftime documentation for valid dates
+        "dateToLocal": "%d.%m.%Y",
+    }
 
-sheet.column_dimensions["A"].width = 23
-sheet.column_dimensions["B"].width = 20
-sheet.column_dimensions["C"].width = 28
-sheet.column_dimensions["D"].width = 25
+    def __init__(self, input, output):
+        self.input = input
+        self.output = output
+        self.workbook = Workbook()
+        self.sheet = self.workbook.active
+
+    def convertToDict(self):
+        try:
+            return csv.DictReader(open(self.input))
+        except:
+            raise Exception("File is not avilable or is of a wrong type")
+
+    def filterDataByDate(self):
+        filterByDate = dict()
+        lastDate = None
+        for record in self.convertToDict():
+            date = record["Start Time"].split(" ")[0]
+            if lastDate and date == lastDate:
+
+                filterByDate[date].append(record)
+            else:
+                filterByDate[date] = [record]
+            lastDate = date
+        return filterByDate
+
+    def filterUniqueUsers(self, type, values):
+        filteredDict = dict()
+        for user in values:
+            name = user["Name (Original Name)"]
+            email = user["User Email"]
+            online = int(user["Duration (Minutes)"])
+            user = str()
+            if type == "email":
+                user = email
+            else:
+                user = name
+            if user in filteredDict.keys():
+                filteredDict[user]["online"] += online
+            else:
+                filteredDict[user] = {
+                    "name": name,
+                    "email": email,
+                    "online": online
+                }
+        return filteredDict
+
+    def addUsersToTable(self, row, values, medium):
+        sheet = self.sheet
+        for _, value in values.items():
+            sheet[f"A{row}"] = value["name"]
+            sheet[f"B{row}"] = value["email"]
+            sheet[f"C{row}"] = value["online"]
+            sheet[f'A{row}'].border = Border(left=medium)
+            sheet[f'D{row}'].border = Border(right=medium)
+            row += 1
+        return row
+
+    def csvToXlsx(self, byNameOrEmail="name"):
+        sheet = self.sheet
+
+        # Table Width
+        sheet.column_dimensions["A"].width = 25
+        sheet.column_dimensions["B"].width = 30
+        sheet.column_dimensions["C"].width = 20
+        sheet.column_dimensions["D"].width = 35
+
+        medium = Side(border_style="medium", color="303030")
+        row = 1
+        for _, meeting in self.filterDataByDate().items():
+
+            #  HEADER
+            sheet[f"A{row}"] = self.REGION_PREFERENCES["meetingId"]
+            sheet[f"A{row}"].font = Font(bold=True)
+            sheet[f"A{row}"].border = Border(top=medium, left=medium)
+            sheet[f"B{row}"] = meeting[0]["Meeting ID"]  # Meet_id
+            sheet[f'B{row}'].border = Border(top=medium)
+
+            sheet[f"C{row}"] = self.REGION_PREFERENCES["topic"]
+            sheet[f"C{row}"].font = Font(bold=True)
+            sheet[f"C{row}"].border = Border(top=medium)
+            sheet[f"D{row}"] = meeting[0]["\ufeffTopic"]  # Topic
+            sheet[f"D{row}"].border = Border(top=medium, right=medium)
+
+            row += 1
+            sheet[f"A{row}"] = self.REGION_PREFERENCES["meetingDuration"]
+            sheet[f"A{row}"].font = Font(bold=True)
+            sheet[f"A{row}"].border = Border(left=medium)
+            sheet[f"B{row}"] = meeting[0]["Duration (Minutes)"]
+            sheet[f"C{row}"] = self.REGION_PREFERENCES["startTime"]
+            sheet[f"C{row}"].font = Font(bold=True)
+            sheet[f"D{row}"] = self.changeDateFormat(
+                meeting[0]["Start Time"])
+            sheet[f"D{row}"].border = Border(right=medium)
+
+            row += 1
+            sheet[f"C{row}"] = self.REGION_PREFERENCES["endTime"]
+            sheet[f"C{row}"].font = Font(bold=True)
+            sheet[f"D{row}"] = self.changeDateFormat(meeting[0]["End Time"])
+            sheet[f"D{row}"].border = Border(right=medium)
+            sheet[f'A{row}'].border = Border(left=medium)
+
+            # Space before user list
+            row += 1
+            sheet[f'A{row}'].border = Border(left=medium)
+            sheet[f'D{row}'].border = Border(right=medium)
+            row += 1
+
+            # User header
+            sheet[f"A{row}"] = self.REGION_PREFERENCES["name"]
+            sheet[f"A{row}"].font = Font(bold=True)
+            sheet[f"B{row}"] = self.REGION_PREFERENCES["email"]
+            sheet[f"B{row}"].font = Font(bold=True)
+            sheet[f"C{row}"] = self.REGION_PREFERENCES["timeOnline"]
+            sheet[f"C{row}"].font = Font(bold=True)
+            sheet[f"A{row}"].border = Border(left=medium)
+            sheet[f'D{row}'].border = Border(right=medium)
+
+            # User Table
+            row += 1
+            filteredDict = self.filterUniqueUsers(byNameOrEmail, meeting)
+            row = self.addUsersToTable(row, filteredDict, medium)
+            sheet[f'A{row}'].border = Border(top=medium)
+            sheet[f'B{row}'].border = Border(top=medium)
+            sheet[f'C{row}'].border = Border(top=medium)
+            sheet[f'D{row}'].border = Border(top=medium)
+            row += 1
+
+        self.workbook.save(filename=self.output)
+        print(f"File written @ {self.output}")
+
+    def changeDateFormat(self, dateString):
+        time = dateString.split()
+        rightDate = datetime.datetime.strptime(
+            time[0], "%m/%d/%Y").strftime(self.REGION_PREFERENCES["dateToLocal"])
+        return f"{rightDate} {time[1]}"
 
 
-thin = Side(border_style="thin", color="303030")
-medium = Side(border_style="medium", color="303030")
-i = 0
-for x in new_list:
-
-    sheet[f"A{1+i}"] = 'Meeting ID : '
-    sheet[f"A{1+i}"].border = Border(top=medium,
-                                     left=medium, right=thin, bottom=thin)
-
-    sheet[f"B{1+i}"] = x[0]  # Meet_id
-    sheet[f'B{1+i}'].border = Border(top=medium,
-                                     left=thin, right=thin, bottom=thin)
-
-    sheet[f"A{2+i}"] = 'Time (minutes) : '
-    sheet[f"A{2+i}"].border = Border(top=thin,
-                                     left=medium, right=thin, bottom=thin)
-
-    sheet[f"B{2+i}"] = x[1]  # duration
-    sheet[f"B{2+i}"].border = Border(top=thin,
-                                     left=thin, right=thin, bottom=thin)
-
-    sheet[f"A{4+i}"] = 'Name'
-    sheet[f"A{4+i}"].border = Border(top=thin, left=medium, bottom=thin)
-    # for loop with  all name
-    s = 5
-    for nam in x[5]:
-        sheet[f"C{s+i}"] = nam[1]
-        sheet[f"A{s+i}"] = nam[0]
-        sheet[f"D{s+i}"] = nam[2]
-        s += 1
-
-    sheet[f"C{1+i}"] = 'Topic : '
-    sheet[f"C{1+i}"].border = Border(top=medium,
-                                     left=thin, right=thin, bottom=thin)
-
-    sheet[f"D{1+i}"] = x[2]  # Topic
-    sheet[f"D{1+i}"].border = Border(top=medium,
-                                     left=thin, right=medium, bottom=thin)
-
-    sheet[f"C{2+i}"] = 'Start time : '
-    sheet[f"C{2+i}"].border = Border(top=thin,
-                                     left=thin, right=thin, bottom=thin)
-
-    sheet[f"D{2+i}"] = x[3]  # start_t
-    sheet[f"D{2+i}"].border = Border(top=thin,
-                                     left=thin, right=medium, bottom=thin)
-
-    sheet[f"C{4+i}"] = 'E-mail'
-    sheet[f"C{4+i}"].border = Border(top=thin, bottom=thin)
-    # For loop for user emails
-
-    sheet[f"C{3+i}"] = 'End time : '
-    sheet[f"C{3+i}"].border = Border(top=thin,
-                                     left=thin, right=thin, bottom=medium)
-
-    sheet[f"D{3+i}"] = x[4]  # End_t
-    sheet[f"D{3+i}"].border = Border(top=thin,
-                                     left=thin, right=medium, bottom=medium)
-
-    # Boarders
-    sheet[f'D{4 + i}'].border = Border(top=thin, right=medium, bottom=thin)
-    sheet[f'A{3 + i}'].border = Border(top=thin,
-                                       left=medium, right=thin, bottom=medium)
-    sheet[f'B{3 + i}'].border = Border(top=thin,
-                                       left=thin, right=thin, bottom=medium)
-    sheet[f'B{4 + i}'].border = Border(top=thin,  bottom=thin)
-
-    for m in range(5, len(x[5]) + 6):
-        sheet[f'A{m + i}'].border = Border(left=medium)
-        sheet[f'D{m + i}'].border = Border(right=medium)
-
-    sheet[f'A{len(x[5]) + 5 + i}'].border = Border(left=medium,
-                                                   bottom=medium)  # Bottom-Left
-    # Bottom - mid
-    sheet[f'B{len(x[5]) + 5 + i}'].border = Border(bottom=medium)
-    # Bottom - mid
-    sheet[f'C{len(x[5]) + 5 + i}'].border = Border(bottom=medium)
-    sheet[f'D{len(x[5]) + 5 + i}'].border = Border(right=medium,
-                                                   bottom=medium)  # Bottom-Right
-
-    i += len(x[5]) + 6
-
-
-workbook.save(filename='.\Zoom_test\report.xlsx')
+# RUN PROGRAM
+# input = "./input_files/meetinglistdetails_00000000_00000000.csv"
+# output = "./output_files/report.xlsx"
+# test = ZoomToXlsx(input, output)
+# test.csvToXlsx()
